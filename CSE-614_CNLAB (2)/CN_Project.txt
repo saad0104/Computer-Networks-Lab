@@ -1,0 +1,67 @@
+CSE 614 - Computer Networks Lab 
+--------------------------------
+
+1. Socket Programming
+----------------------
+A socket is an endpoint for sending/receiving data across a network. Two types used in this project:
+
+  TCP (SOCK_STREAM):
+
+    - Connection-oriented, reliable, ordered delivery
+    - Server flow: socket() -> bind() -> listen() -> accept() -> recv()/send()
+    -> close()
+    - Client flow: socket() -> connect() -> send()/recv() -> close()
+
+  UDP (SOCK_DGRAM):
+
+    - Connectionless, no delivery/order guarantee
+    - Server flow: socket() -> bind() -> recvfrom()/sendto() (loop, no accept needed)
+    - Client flow: socket() -> sendto()/recvfrom() -> close()
+    
+
+2. Simple Web Server using Socket Programming with TCP
+-------------------------------------------------------
+
+This server:
+  1. Accepts a TCP connection (HTTP request) from a client (browser).
+  2. Parses the HTTP request header to find the requested filename.
+  3. Obtains the requested file from the server's file system.
+  4. Creates an HTTP response message (header lines + file content).
+  5. Sends the response back to the client.
+
+--> Run this on PC-1 (the server machine):
+    python3 web_server.py
+
+--> Then from PC-2 (client machine), open a browser and go to:
+    http://<PC-1's IP address>:6789/filename.html
+
+Make sure:
+  - Both PCs are on the same network (same LAN / Wi-Fi / hotspot).
+  - Firewall on the server PC allows incoming connections on the chosen port.
+  - The requested file (e.g. index.html) exists in the same folder.
+
+
+3. Simple Web Server using Socket Programming with UDP
+-------------------------------------------------------
+
+UDP is connectionless, so there is no accept()/listen() like TCP. Instead, the server just waits on a socket for datagrams to arrive.
+
+Since UDP has no reliable delivery, no ordering, and a limited datagram size, we build a very simple custom "request-response" protocol on top of it to send files in chunks:
+
+    Client -> Server : "GET <filename>"
+    Server -> Client : "OK <filesize>"                (if file exists)
+                        "ERR <message>"                (if file not found)
+    Server -> Client : file content, split into fixed-size chunks
+    Server -> Client : "END"                          (marks end of transfer)
+
+--> Run this on PC-1 (server machine):
+
+    python3 UDP_Server.py
+
+--> Then run the UDP_Client.py on PC-2 (client machine):
+
+    python3 UDP_Client.py <server_ip> <filename>
+
+Example:
+    python3 UDP_Client.py 192.168.1.5 index.html
+  

@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CSE 614 - TCP File Server</title>
+    <style>
+      :root {
+        --blue: #30b3d4;
+        --navy: #12355b;
+        --background: #f4f7fb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        padding: 2rem 0;
+        place-items: center;
+        color: #1d2939;
+        background: var(--background);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      main {
+        width: min(92%, 820px);
+        padding: 2rem;
+        border-radius: 16px;
+        background: white;
+        box-shadow: 0 8px 24px rgba(18, 53, 91, 0.14);
+      }
+
+      h1 {
+        margin-top: 0;
+        color: var(--navy);
+      }
+
+      h2 {
+        margin: 0 0 0.75rem;
+        color: var(--navy);
+        font-size: 1.15rem;
+      }
+
+      .subtitle {
+        margin-top: -0.5rem;
+        color: #475467;
+      }
+
+      .status {
+        margin: 1rem 0;
+        padding: 0.85rem 1rem;
+        border-left: 4px solid #12b76a;
+        border-radius: 4px;
+        background: #e7f8f0;
+        word-break: break-word;
+      }
+
+      .status a {
+        color: var(--navy);
+        font-weight: bold;
+      }
+
+      .file-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 1rem;
+        margin: 1.25rem 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .file-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        padding: 1rem;
+        border: 2px solid #d6e0ea;
+        border-radius: 10px;
+        background: #fbfdff;
+      }
+
+      .file-card:hover {
+        border-color: var(--blue);
+      }
+
+      .file-name {
+        color: var(--navy);
+        font-weight: bold;
+        word-break: break-word;
+      }
+
+      .file-type {
+        color: #475467;
+        font-size: 0.85rem;
+      }
+
+      .actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: auto;
+        padding-top: 0.85rem;
+      }
+
+      .actions a {
+        flex: 1;
+        padding: 0.5rem 0.6rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        text-align: center;
+        text-decoration: none;
+      }
+
+      .open-link {
+        border: 1px solid var(--blue);
+        color: var(--navy);
+        background: #eaf3ff;
+      }
+
+      .open-link:hover {
+        background: #d8ebff;
+      }
+
+      .download-btn {
+        border: 1px solid var(--blue);
+        color: white;
+        background: var(--blue);
+      }
+
+      .download-btn:hover {
+        border-color: var(--navy);
+        background: var(--navy);
+      }
+
+      .upload-box {
+        margin: 1.5rem 0;
+        padding: 1.25rem;
+        border: 2px dashed var(--blue);
+        border-radius: 12px;
+        background: #f7fbff;
+      }
+
+      .upload-form {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      input[type="file"] {
+        flex: 1 1 260px;
+        padding: 0.6rem;
+        border: 1px solid #a9b8ca;
+        border-radius: 8px;
+        background: white;
+        font: inherit;
+      }
+
+      button[type="submit"] {
+        padding: 0.7rem 1.2rem;
+        border: 0;
+        border-radius: 8px;
+        color: white;
+        background: var(--navy);
+        font: inherit;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      button[type="submit"]:hover {
+        background: var(--blue);
+      }
+
+      .empty {
+        margin: 0;
+        padding: 0.85rem;
+        border-radius: 8px;
+        color: #475467;
+        background: #f4f7fb;
+      }
+
+      .note {
+        margin-bottom: 0;
+        padding: 0.85rem;
+        border-left: 4px solid var(--blue);
+        border-radius: 4px;
+        background: #eaf3ff;
+        font-size: 0.9rem;
+      }
+
+      footer {
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid #d6e0ea;
+        color: #475467;
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <main>
+      <h1>CSE 614 - TCP File Server</h1>
+      <p class="subtitle">
+        Group 14 &middot; Computer Networks Lab &middot; Prof. Dr. Atiqur Rahman
+      </p>
+
+      <p>
+        Every file on this page is stored in the <strong>server's</strong> folder.
+        Click <em>Download</em> and the browser (TCP client) sends
+        <code>GET /&lt;file&gt;</code> to the server, which reads the file and
+        sends it back over the TCP connection.
+      </p>
+
+      <p id="upload-status" class="status" hidden></p>
+
+      <section class="upload-box">
+        <h2>Upload a file to the server</h2>
+        <p>
+          Choose <strong>any file type</strong> (up to 20 MB). It is sent to the
+          server with <code>POST /upload</code> and saved in the server's
+          <code>uploads/</code> folder.
+        </p>
+
+        <form
+          class="upload-form"
+          action="/upload"
+          method="post"
+          enctype="multipart/form-data"
+        >
+          <input
+            id="file-input"
+            type="file"
+            name="file"
+            required
+            aria-label="Choose a file to upload"
+          >
+          <button type="submit">Upload to server</button>
+        </form>
+      </section>
+
+      <section>
+        <h2>Files on the server</h2>
+        <ul class="file-grid">
+          <li class="file-card">
+            <span class="file-name">Group_14.html</span>
+            <span class="file-type">HTML page</span>
+            <div class="actions">
+              <a class="open-link" href="Group_14.html">Open</a>
+              <a class="download-btn" href="Group_14.html" download>Download</a>
+            </div>
+          </li>
+          <li class="file-card">
+            <span class="file-name">TextCase.html</span>
+            <span class="file-type">HTML page</span>
+            <div class="actions">
+              <a class="open-link" href="TextCase.html">Open</a>
+              <a class="download-btn" href="TextCase.html" download>Download</a>
+            </div>
+          </li>
+          <li class="file-card">
+            <span class="file-name">CN_Lab.html</span>
+            <span class="file-type">HTML page</span>
+            <div class="actions">
+              <a class="open-link" href="CN_Lab.html">Open</a>
+              <a class="download-btn" href="CN_Lab.html" download>Download</a>
+            </div>
+          </li>
+          <li class="file-card">
+            <span class="file-name">CN_Project.txt</span>
+            <span class="file-type">Text file</span>
+            <div class="actions">
+              <a class="open-link" href="CN_Project.txt">Open</a>
+              <a class="download-btn" href="CN_Project.txt" download>Download</a>
+            </div>
+          </li>
+          <li class="file-card">
+            <span class="file-name">CN_LAB.txt</span>
+            <span class="file-type">Text file</span>
+            <div class="actions">
+              <a class="open-link" href="CN_LAB.txt">Open</a>
+              <a class="download-btn" href="CN_LAB.txt" download>Download</a>
+            </div>
+          </li>
+          <li class="file-card">
+            <span class="file-name">CN_Laboutline.pdf</span>
+            <span class="file-type">PDF document</span>
+            <div class="actions">
+              <a class="open-link" href="CN_Laboutline.pdf">Open</a>
+              <a class="download-btn" href="CN_Laboutline.pdf" download>Download</a>
+            </div>
+          </li>
+          <li class="file-card">
+            <span class="file-name">CN_Socket.ppt</span>
+            <span class="file-type">PowerPoint slides</span>
+            <div class="actions">
+              <a class="open-link" href="CN_Socket.ppt">Open</a>
+              <a class="download-btn" href="CN_Socket.ppt" download>Download</a>
+            </div>
+          </li>
+          <li class="file-card">
+            <span class="file-name">IT_Building.jpg</span>
+            <span class="file-type">JPEG image</span>
+            <div class="actions">
+              <a class="open-link" href="IT_Building.jpg">Open</a>
+              <a class="download-btn" href="IT_Building.jpg" download>Download</a>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Uploaded files</h2>
+        <ul id="upload-list" class="file-grid">
+          <li class="empty">Loading...</li>
+        </ul>
+      </section>
+
+      <p class="note">
+        <strong>Note:</strong> the server converts <code>.txt</code> files to
+        UPPERCASE before sending them, so text files (including uploaded ones)
+        will download in capital letters. That is the lab's required behaviour,
+        not a bug. Files on disk keep their original content.
+      </p>
+
+      <footer>
+        Run <code>python3 TCP_Server.py</code> on the server PC, then open
+        <code>http://&lt;server-ip&gt;:8080/index.html</code> in the browser on
+        the client PC.
+      </footer>
+    </main>
+
+    <script>
+      const uploadList = document.getElementById("upload-list");
+      const uploadStatus = document.getElementById("upload-status");
+
+      function formatSize(bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+      }
+
+      // Build one card with an Open link and a Download button.
+      // textContent is used for the name so a weird filename cannot inject HTML.
+      function createFileCard(name, href, typeLabel) {
+        const card = document.createElement("li");
+        card.className = "file-card";
+
+        const fileName = document.createElement("span");
+        fileName.className = "file-name";
+        fileName.textContent = name;
+
+        const fileType = document.createElement("span");
+        fileType.className = "file-type";
+        fileType.textContent = typeLabel;
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        const openLink = document.createElement("a");
+        openLink.className = "open-link";
+        openLink.href = href;
+        openLink.textContent = "Open";
+
+        const downloadLink = document.createElement("a");
+        downloadLink.className = "download-btn";
+        downloadLink.href = href;
+        downloadLink.setAttribute("download", name);
+        downloadLink.textContent = "Download";
+
+        actions.append(openLink, downloadLink);
+        card.append(fileName, fileType, actions);
+        return card;
+      }
+
+      // The server redirects back here with ?uploaded=<name> after an upload
+      const uploadedName = new URLSearchParams(location.search).get("uploaded");
+      if (uploadedName) {
+        const href = "uploads/" + encodeURIComponent(uploadedName);
+
+        uploadStatus.hidden = false;
+        uploadStatus.append('Uploaded "');
+        uploadStatus.append(uploadedName);
+        uploadStatus.append('" to the server. ');
+
+        const downloadLink = document.createElement("a");
+        downloadLink.href = href;
+        downloadLink.setAttribute("download", uploadedName);
+        downloadLink.textContent = "Download it now";
+        uploadStatus.append(downloadLink);
+      }
+
+      // Ask the server for the current contents of its uploads folder
+      async function loadUploads() {
+        try {
+          const response = await fetch("uploads.json", { cache: "no-store" });
+          const files = await response.json();
+
+          uploadList.replaceChildren();
+
+          if (files.length === 0) {
+            const empty = document.createElement("li");
+            empty.className = "empty";
+            empty.textContent = "No files uploaded yet.";
+            uploadList.append(empty);
+            return;
+          }
+
+          for (const file of files) {
+            const href = "uploads/" + encodeURIComponent(file.name);
+            uploadList.append(createFileCard(file.name, href, formatSize(file.size)));
+          }
+        } catch (error) {
+          uploadList.replaceChildren();
+          const failed = document.createElement("li");
+          failed.className = "empty";
+          failed.textContent = "Could not load the upload list.";
+          uploadList.append(failed);
+        }
+      }
+
+      loadUploads();
+    </script>
+  </body>
+</html>
